@@ -5,4 +5,4 @@ Implementation of GAN (Generative Adversarial Nets) in [Tensorflow](www.tensorfl
   * Vanila GAN on [MNIST](yann.lecun.com/exdb/mnist/)
 
 ## Reference
-Generative Adversarial Networks (2014) by Ian J. Goodfellow, Jean Pouget-Abadie, Mehdi Mirza, Bing Xu, David Warde-Farley, Sherjil Ozair, Aaron Courville, Yoshua Bengio. [ArXiv link is here](https://arxiv.org/abs/1406.2661)
+[Generative Adversarial Networks](https://arxiv.org/abs/1406.2661) (2014) by Ian J. Goodfellow, Jean Pouget-Abadie, Mehdi Mirza, Bing Xu, David Warde-Farley, Sherjil Ozair, Aaron Courville, Yoshua Bengio.
