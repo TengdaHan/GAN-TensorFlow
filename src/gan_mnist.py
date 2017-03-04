@@ -97,6 +97,7 @@ def train(batch_size=100):
 
     # G
     N = tf.placeholder(tf.float32, [None, 10])  # noise
+    tf.summary.histogram('Noise', N)
     G = generator(N, batch_size)
     tf.summary.image('generated image', G, 3)
 
@@ -118,8 +119,8 @@ def train(batch_size=100):
 
     with tf.name_scope('G_loss'):
         g_loss_pixel = tf.reduce_mean(tf.square(tf.subtract(X, G)))
-        g_loss_d = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=Ylogits_, labels=tf.ones_like(Y_)))
-        g_loss = g_loss_pixel + g_loss_d
+        g_loss_d = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=Ylogits_, labels=tf.ones_like(Y_)))
+        g_loss = 0.9 * g_loss_pixel + 0.1 * g_loss_d
         tf.summary.scalar('g_loss_pixel', g_loss_pixel)
         tf.summary.scalar('g_loss_d', g_loss_d)
         tf.summary.scalar('g_loss', g_loss)
@@ -132,22 +133,23 @@ def train(batch_size=100):
     sess.run(init)
 
     merged_summary = tf.summary.merge_all()
-    writer = tf.summary.FileWriter('tmp/mnist/1')
+    writer = tf.summary.FileWriter('tmp/mnist/9')
     writer.add_graph(sess.graph)
 
-    for i in range(10000):
+    for i in range(2500):
         batch_X, _ = mnist.train.next_batch(batch_size)
         batch_X = np.reshape(batch_X, [-1, 28, 28, 1])
         batch_noise = np.random.rand(batch_size, 10)
-        if i % 2 == 0:
-            # train G
-            g_loss_print, batch_G, _ = sess.run([g_loss, G, g_train_step], feed_dict={X: batch_X,
-                                                                                      N: batch_noise})
-        else:
-            # train D
-            d_loss_print, _ = sess.run([d_loss, d_train_step],
-                                       feed_dict={X: batch_X,
-                                                  N: batch_noise})
+
+        # train G
+        g_loss_print, batch_G, _ = sess.run([g_loss, G, g_train_step],
+                                            feed_dict={X: batch_X, N: batch_noise})
+        # train G twice
+        g_loss_print, batch_G, _ = sess.run([g_loss, G, g_train_step],
+                                            feed_dict={X: batch_X, N: batch_noise})
+        # train D
+        d_loss_print, _ = sess.run([d_loss, d_train_step],
+                                   feed_dict={X: batch_X, N: batch_noise})
 
         if i % 10 == 0:
             s = sess.run(merged_summary, feed_dict={X: batch_X, N: batch_noise})
@@ -157,11 +159,11 @@ def train(batch_size=100):
             except:
                 pass
 
-        if i % 100 == 0:
-            try:
-                cv2.imwrite(os.path.join('..', 'figure', '1.png'), np.repeat(batch_G[0], 3, axis=2))
-            except:
-                pass
+        # if i % 100 == 0:
+        #     try:
+        #         cv2.imwrite(os.path.join('..', 'figure', '1.png'), np.repeat(batch_G[0], 3, axis=2))
+        #     except:
+        #         pass
 
 if __name__ == '__main__':
     train()
