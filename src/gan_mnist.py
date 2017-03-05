@@ -35,8 +35,11 @@ def read_data():
     return mnist
 
 
-def discriminator(X):
-    with tf.name_scope('D'):
+def discriminator(X, reuse=False):
+    with tf.variable_scope('D') as scope:
+        if reuse:
+            scope.reuse_variables()
+
         K = 4
         M = 8
         W1 = tf.Variable(tf.truncated_normal([3, 3, 1, K], stddev=0.1))
@@ -48,24 +51,29 @@ def discriminator(X):
         W4 = tf.Variable(tf.truncated_normal([100, 1], stddev=0.1))
         B4 = tf.Variable(tf.constant(0.1, tf.float32, [1]))
 
-        conv1 = conv(X, W1, B1, stride=1, name='conv1')
-        pool1 = tf.nn.max_pool(conv1, ksize=[1,3,3,1], strides=[1,2,2,1], padding='SAME', name='pool1')
-        conv2 = conv(pool1, W2, B2, stride=1, name='conv2')
-        pool2 = tf.nn.max_pool(conv2, ksize=[1,3,3,1], strides=[1,2,2,1], padding='SAME', name='pool2')
-        flat = tf.reshape(pool2, [-1, 7*7*M], name='flat')
+        conv1 = conv(X, W1, B1, stride=2, name='conv1')
+        bn1 = tf.nn.relu(tf.nn.batch_normalization(conv1, 0, 0.1,
+                                                   offset=None,
+                                                   scale=None,
+                                                   variance_epsilon=1e-5))
+        conv2 = conv(bn1, W2, B2, stride=2, name='conv2')
+        bn2 = tf.nn.relu(tf.nn.batch_normalization(conv2, 0, 0.1,
+                                                   offset=None,
+                                                   scale=None,
+                                                   variance_epsilon=1e-5))
+        flat = tf.reshape(bn2, [-1, 7*7*M], name='flat')
         dense = tf.nn.relu(tf.matmul(flat, W3) + B3, name='dense')
         logits = tf.matmul(dense, W4) + B4
         return tf.nn.sigmoid(logits), logits
 
 
 def generator(X, batch_size):
-    with tf.name_scope('G'):
+    with tf.variable_scope('G'):
         K = 4
         M = 2
 
-        W1 = tf.Variable(tf.truncated_normal([3, 3, K, 10], stddev=0.1))
-        B1 = tf.Variable(tf.constant(0.1, tf.float32, [K]))
-        S1 = tf.Variable(tf.constant([batch_size, 7, 7, K], tf.int32))  # 7
+        W1 = tf.Variable(tf.truncated_normal([10, 7*7*K], stddev=0.1))
+        B1 = tf.Variable(tf.constant(0.1, tf.float32, [7*7*K]))
 
         W2 = tf.Variable(tf.truncated_normal([3, 3, M, K], stddev=0.1))
         B2 = tf.Variable(tf.constant(1, tf.float32, [M]))
@@ -75,18 +83,18 @@ def generator(X, batch_size):
         B3 = tf.Variable(tf.constant(0.1, tf.float32, [1]))
         S3 = tf.Variable(tf.constant([batch_size, 28, 28, 1], tf.int32))  # 28
 
-        XX = tf.reshape(X, [batch_size, 1, 1, 10])
-        deconv1 = deconv(XX, W1, B1, shape=S1, stride=7, name='deconv1')
-        deconv2 = deconv(deconv1, W2, B2, shape=S2, stride=2, name='deconv2')
-        deconv3 = deconv(deconv2, W3, B3, shape=S3, stride=2, name='deconv3')
-        return deconv3
+        XX = tf.nn.relu(tf.matmul(X, W1) + B1)
+        XX_reshape = tf.reshape(XX, [batch_size, 7, 7, K])
+        deconv1 = deconv(XX_reshape, W2, B2, shape=S2, stride=2, name='deconv1')
+        deconv2 = deconv(deconv1, W3, B3, shape=S3, stride=2, name='deconv2')
+        return deconv2
 
 
 def train(batch_size=100):
     mnist = read_data()
 
-    real_label = np.hstack((np.zeros([batch_size,1]), np.ones([batch_size,1])))
-    fake_label = np.hstack((np.ones([batch_size, 1]), np.zeros([batch_size, 1])))
+    # real_label = np.hstack((np.zeros([batch_size,1]), np.ones([batch_size,1])))
+    # fake_label = np.hstack((np.ones([batch_size, 1]), np.zeros([batch_size, 1])))
 
     # Raw image
     X = tf.placeholder(tf.float32, [None, 28, 28, 1])
@@ -96,15 +104,18 @@ def train(batch_size=100):
     # Y_fake = tf.placeholder(tf.float32, [None, 2])
 
     # G
-    N = tf.placeholder(tf.float32, [None, 10])  # noise
-    tf.summary.histogram('Noise', N)
-    G = generator(N, batch_size)
+    z = tf.placeholder(tf.float32, [None, 10])  # noise
+    tf.summary.histogram('Noise', z)
+    G = generator(z, batch_size)
     tf.summary.image('generated image', G, 3)
 
     # D
     # Input = tf.placeholder(tf.float32, [None, 28, 28, 1])
-    Y, Ylogits = discriminator(X)
-    Y_, Ylogits_ = discriminator(G)
+    Y, Ylogits = discriminator(X, reuse=False)
+    Y_, Ylogits_ = discriminator(G, reuse=True)
+    with tf.name_scope('Prediction'):
+        tf.summary.histogram('Raw', Y)
+        tf.summary.histogram('Generated', Y_)
 
     with tf.name_scope('D_loss'):
         d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=Ylogits, labels=tf.ones_like(Y)))
@@ -120,7 +131,7 @@ def train(batch_size=100):
     with tf.name_scope('G_loss'):
         g_loss_pixel = tf.reduce_mean(tf.square(tf.subtract(X, G)))
         g_loss_d = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=Ylogits_, labels=tf.ones_like(Y_)))
-        g_loss = 0.9 * g_loss_pixel + 0.1 * g_loss_d
+        g_loss = g_loss_d
         tf.summary.scalar('g_loss_pixel', g_loss_pixel)
         tf.summary.scalar('g_loss_d', g_loss_d)
         tf.summary.scalar('g_loss', g_loss)
@@ -133,7 +144,7 @@ def train(batch_size=100):
     sess.run(init)
 
     merged_summary = tf.summary.merge_all()
-    writer = tf.summary.FileWriter('tmp/mnist/9')
+    writer = tf.summary.FileWriter('tmp/mnist/13')
     writer.add_graph(sess.graph)
 
     for i in range(2500):
@@ -143,16 +154,16 @@ def train(batch_size=100):
 
         # train G
         g_loss_print, batch_G, _ = sess.run([g_loss, G, g_train_step],
-                                            feed_dict={X: batch_X, N: batch_noise})
+                                            feed_dict={X: batch_X, z: batch_noise})
         # train G twice
         g_loss_print, batch_G, _ = sess.run([g_loss, G, g_train_step],
-                                            feed_dict={X: batch_X, N: batch_noise})
+                                            feed_dict={X: batch_X, z: batch_noise})
         # train D
         d_loss_print, _ = sess.run([d_loss, d_train_step],
-                                   feed_dict={X: batch_X, N: batch_noise})
+                                   feed_dict={X: batch_X, z: batch_noise})
 
         if i % 10 == 0:
-            s = sess.run(merged_summary, feed_dict={X: batch_X, N: batch_noise})
+            s = sess.run(merged_summary, feed_dict={X: batch_X, z: batch_noise})
             writer.add_summary(s, i)
             try:
                 print('epoch:%d g_loss:%f d_loss:%f' % (i, g_loss_print, d_loss_print))
