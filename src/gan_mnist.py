@@ -36,7 +36,7 @@ def read_data():
 
 
 def discriminator(X, reuse=False):
-    with tf.variable_scope('D') as scope:
+    with tf.variable_scope('discriminator') as scope:
         if reuse:
             scope.reuse_variables()
 
@@ -68,7 +68,7 @@ def discriminator(X, reuse=False):
 
 
 def generator(X, batch_size):
-    with tf.variable_scope('G'):
+    with tf.variable_scope('generator'):
         K = 4
         M = 2
 
@@ -125,9 +125,6 @@ def train(batch_size=100):
         tf.summary.scalar('d_loss_fake', d_loss_fake)
         tf.summary.scalar('d_loss', d_loss)
 
-    with tf.name_scope('D_train'):
-        d_train_step = tf.train.AdamOptimizer(1e-4).minimize(d_loss)
-
     with tf.name_scope('G_loss'):
         g_loss_pixel = tf.reduce_mean(tf.square(tf.subtract(X, G)))
         g_loss_d = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=Ylogits_, labels=tf.ones_like(Y_)))
@@ -136,8 +133,13 @@ def train(batch_size=100):
         tf.summary.scalar('g_loss_d', g_loss_d)
         tf.summary.scalar('g_loss', g_loss)
 
-    with tf.name_scope('G_train'):
-        g_train_step = tf.train.AdamOptimizer(1e-4).minimize(g_loss)
+    tvar = tf.trainable_variables()
+    dvar = [var for var in tvar if 'discriminator' in var.name]
+    gvar = [var for var in tvar if 'generator' in var.name]
+
+    with tf.name_scope('train'):
+        d_train_step = tf.train.AdamOptimizer(1e-4).minimize(d_loss, var_list=dvar)
+        g_train_step = tf.train.AdamOptimizer(1e-4).minimize(g_loss, var_list=gvar)
 
     sess = tf.Session()
     init = tf.global_variables_initializer()
@@ -154,7 +156,7 @@ def train(batch_size=100):
 
         # train G
         g_loss_print, batch_G, _ = sess.run([g_loss, G, g_train_step],
-                                            feed_dict={X: batch_X, z: batch_noise})
+                                            feed_dict={X: batch_X, z: batch_noise},)
         # train G twice
         g_loss_print, batch_G, _ = sess.run([g_loss, G, g_train_step],
                                             feed_dict={X: batch_X, z: batch_noise})
