@@ -45,26 +45,25 @@ def discriminator(X, reuse=False):
         if reuse:
             scope.reuse_variables()
 
-        K = 4
-        M = 2
-        N = 50
-        # W1 = tf.Variable(tf.truncated_normal([3, 3, 1, K], stddev=0.1))
-        # B1 = tf.Variable(tf.constant(0.1, tf.float32, [K]))
-        # W2 = tf.Variable(tf.truncated_normal([3, 3, K, M], stddev=0.1))
-        W2 = tf.Variable(tf.truncated_normal([3, 3, 1, M], stddev=0.1))
+        K = 8
+        M = 32
+        N = 128
+        W1 = tf.Variable(tf.truncated_normal([3, 3, 1, K], stddev=0.1))
+        B1 = tf.Variable(tf.constant(0.1, tf.float32, [K]))
+        W2 = tf.Variable(tf.truncated_normal([3, 3, K, M], stddev=0.1))
         B2 = tf.Variable(tf.constant(0.1, tf.float32, [M]))
         W3 = tf.Variable(tf.truncated_normal([7*7*M, N], stddev=0.1))
         B3 = tf.Variable(tf.constant(0.1, tf.float32, [N]))
         W4 = tf.Variable(tf.truncated_normal([N, 1], stddev=0.1))
         B4 = tf.Variable(tf.constant(0.1, tf.float32, [1]))
 
-        # conv1 = conv(X, W1, B1, stride=2, name='conv1')
-        # bn1 = tf.nn.batch_normalization(conv1, 0, 0.1,
-        #                                offset=None,
-        #                                scale=None,
-        #                                variance_epsilon=1e-5)
-        conv2 = conv(X, W2, B2, stride=2, name='conv2')
-        bn2 = tf.nn.batch_normalization(conv2, 0, 0.1,
+        conv1 = conv(X, W1, B1, stride=2, name='conv1')
+        bn1 = tf.nn.batch_normalization(conv1, 0, 1,
+                                       offset=None,
+                                       scale=None,
+                                       variance_epsilon=1e-5)
+        conv2 = conv(bn1, W2, B2, stride=2, name='conv2')
+        bn2 = tf.nn.batch_normalization(conv2, 0, 1,
                                        offset=None,
                                        scale=None,
                                        variance_epsilon=1e-5)
@@ -76,29 +75,27 @@ def discriminator(X, reuse=False):
 
 def generator(X, batch_size):
     with tf.variable_scope('generator'):
-        K = 16
-        M = 32
+        K = 64
+        M = 512
 
         W1 = tf.Variable(tf.truncated_normal([100, 7*7*K], stddev=0.1))
         B1 = tf.Variable(tf.constant(0.1, tf.float32, [7*7*K]))
 
-        W2 = tf.Variable(tf.truncated_normal([2, 2, M, K], stddev=0.1))
+        W2 = tf.Variable(tf.truncated_normal([4, 4, M, K], stddev=0.1))
         B2 = tf.Variable(tf.constant(1, tf.float32, [M]))
-        S2 = tf.Variable(tf.constant([batch_size, 14, 14, M], tf.int32))  # 14
 
-        W3 = tf.Variable(tf.truncated_normal([2, 2, 1, M], stddev=0.1))
+        W3 = tf.Variable(tf.truncated_normal([4, 4, 1, M], stddev=0.1))
         B3 = tf.Variable(tf.constant(0.1, tf.float32, [1]))
-        S3 = tf.Variable(tf.constant([batch_size, 28, 28, 1], tf.int32))  # 28
 
         XX = lrelu(tf.matmul(X, W1) + B1)
         XX_reshape = tf.reshape(XX, [batch_size, 7, 7, K])
-        deconv1 = deconv(XX_reshape, W2, B2, shape=S2, stride=2, name='deconv1')
-        bn1 = tf.nn.batch_normalization(deconv1, 0, 0.1,
+        deconv1 = deconv(XX_reshape, W2, B2, shape=[batch_size, 14, 14, M], stride=2, name='deconv1')
+        bn1 = tf.nn.batch_normalization(deconv1, 0, 1,
                                         offset=None,
                                         scale=None,
                                         variance_epsilon=1e-5)
-        deconv2 = deconv(tf.nn.relu(bn1), W3, B3, shape=S3, stride=2, name='deconv2')
-        bn2 = tf.nn.batch_normalization(deconv2, 0, 0.1,
+        deconv2 = deconv(tf.nn.relu(bn1), W3, B3, shape=[batch_size, 28, 28, 1], stride=2, name='deconv2')
+        bn2 = tf.nn.batch_normalization(deconv2, 0, 1,
                                         offset=None,
                                         scale=None,
                                         variance_epsilon=1e-5)
@@ -124,24 +121,24 @@ def train(batch_size=100):
     with tf.variable_scope('GAN'):
         G = generator(z, batch_size)
 
-        Y, Ylogits = discriminator(X, reuse=False)
-        Y_, Ylogits_ = discriminator(G, reuse=True)
+        D_real, D_real_logits = discriminator(X, reuse=False)
+        D_fake, D_fake_logits = discriminator(G, reuse=True)
     tf.summary.image('generated image', G, 3)
 
-    with tf.name_scope('Prediction'):
-        tf.summary.histogram('Raw', Y)
-        tf.summary.histogram('Generated', Y_)
+    with tf.variable_scope('Prediction'):
+        tf.summary.histogram('real', D_real)
+        tf.summary.histogram('fake', D_fake)
 
-    with tf.name_scope('D_loss'):
-        d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=Ylogits, labels=tf.ones_like(Y)))
-        d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=Ylogits_, labels=tf.zeros_like(Y_)))
+    with tf.variable_scope('D_loss'):
+        d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)*0.9))
+        d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
         d_loss = d_loss_real + d_loss_fake
         tf.summary.scalar('d_loss_real', d_loss_real)
         tf.summary.scalar('d_loss_fake', d_loss_fake)
         tf.summary.scalar('d_loss', d_loss)
 
     with tf.name_scope('G_loss'):
-        g_loss_d = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=Ylogits_, labels=tf.ones_like(Y_)))
+        g_loss_d = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.ones_like(D_fake)*0.9))
         g_loss = g_loss_d
         tf.summary.scalar('g_loss_d', g_loss_d)
         tf.summary.scalar('g_loss', g_loss)
@@ -152,11 +149,11 @@ def train(batch_size=100):
 
     with tf.name_scope('train'):
         global_step = tf.Variable(0, trainable=False)
-        lr_d = tf.train.exponential_decay(1e-4, global_step, 100, 0.8, staircase=False)
-        lr_g = tf.train.exponential_decay(1e-3, global_step, 100, 0.4, staircase=False)
+        lr_d = tf.train.exponential_decay(1e-4, global_step, 1000, 0.8, staircase=False)
+        lr_g = tf.train.exponential_decay(1e-4, global_step, 100, 0.8, staircase=False)
 
-        d_train_step = tf.train.AdamOptimizer(lr_d).minimize(d_loss, global_step=global_step, var_list=dvar)
-        g_train_step = tf.train.AdamOptimizer().minimize(g_loss, global_step=global_step, var_list=gvar)
+        d_train_step = tf.train.AdamOptimizer(1e-4).minimize(d_loss, global_step=global_step, var_list=dvar)
+        g_train_step = tf.train.AdamOptimizer(1e-4).minimize(g_loss, global_step=global_step, var_list=gvar)
 
         tf.summary.scalar('lr_d', lr_d)
         tf.summary.scalar('lr_g', lr_g)
@@ -165,13 +162,14 @@ def train(batch_size=100):
     sess.run(init)
 
     merged_summary = tf.summary.merge_all()
-    writer = tf.summary.FileWriter('tmp/mnist/6')
+    writer = tf.summary.FileWriter('tmp/mnist/9')
     writer.add_graph(sess.graph)
 
     for i in range(100000):
         batch_X, _ = mnist.train.next_batch(batch_size)
         batch_X = np.reshape(batch_X, [-1, 28, 28, 1])
-        batch_noise = np.random.uniform(-1., 1., [batch_size, 100])
+        batch_X = batch_X * 2 - 1  # normalize input image from -1 to 1
+        batch_noise = np.random.normal(0, 1, [batch_size, 100])
 
         # train G
         # if i % 1000 == 0:
@@ -179,8 +177,10 @@ def train(batch_size=100):
                                    feed_dict={X: batch_X, z: batch_noise},)
 
         # train D
+
         # if i % 1000 == 0:
-        d_loss_print, _ = sess.run([d_loss, d_train_step],
+        for j in range(1):
+            d_loss_print, _ = sess.run([d_loss, d_train_step],
                                    feed_dict={X: batch_X, z: batch_noise})
 
         if i % 25 == 0:
@@ -194,7 +194,8 @@ def train(batch_size=100):
         if i % 1000 == 0:
             try:
                 batch_G = sess.run(G, feed_dict={X: batch_X, z: batch_noise})
-                cv2.imwrite(os.path.join('..', 'figure', '1.png'), (np.repeat(batch_G[0], 3, axis=2)*255))
+                # print('image!', batch_G[0,:,:,0])
+                cv2.imwrite(os.path.join('..', 'figure', '1.png'), ((np.repeat(batch_G[0], 3, axis=2)+1.)*255./2))
             except:
                 pass
 

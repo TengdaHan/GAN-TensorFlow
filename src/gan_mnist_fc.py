@@ -35,6 +35,7 @@ def lrelu(x, alpha=0.2):
 
 def read_data():
     # read mnist data
+    # MNIST is 0-1
     from tensorflow.examples.tutorials.mnist import input_data
     mnist = input_data.read_data_sets("../MNIST_data/", one_hot=True)
     return mnist
@@ -96,11 +97,11 @@ def train(batch_size=100):
     tf.summary.image('generated image', G, 3)
 
     with tf.name_scope('Prediction'):
-        tf.summary.histogram('Raw', D_real)
-        tf.summary.histogram('Generated', D_fake)
+        tf.summary.histogram('real', D_real)
+        tf.summary.histogram('fake', D_fake)
 
     with tf.name_scope('D_loss'):
-        d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)))
+        d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)*0.9))
         d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
         # d_loss_real = -tf.reduce_mean(tf.log(D_real))
         # d_loss_fake = -tf.reduce_mean(tf.log(1. - D_fake))
@@ -111,11 +112,17 @@ def train(batch_size=100):
         tf.summary.scalar('d_loss', d_loss)
 
     with tf.name_scope('G_loss'):
-        g_loss_d = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.ones_like(D_fake)))
+        g_loss_d = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.ones_like(D_fake)*0.9))
         # g_loss_d = -tf.reduce_mean(tf.log(D_fake))
         g_loss = g_loss_d
         tf.summary.scalar('g_loss_d', g_loss_d)
         tf.summary.scalar('g_loss', g_loss)
+
+    # with tf.variable_scope('accuracy'):
+    #     acc_real = tf.reduce_sum(tf.cast(tf.equal(D_real, 1), tf.int32))/tf.shape(D_real)[0]
+    #     acc_fake = tf.reduce_sum(tf.cast(tf.equal(D_fake, 0), tf.int32))/tf.shape(D_fake)[0]
+    #     tf.summary.scalar('accuracy_real', acc_real)
+    #     tf.summary.scalar('accuracy_fake', acc_fake)
 
     tvar = tf.trainable_variables()
     dvar = [var for var in tvar if 'discriminator' in var.name]
@@ -123,26 +130,31 @@ def train(batch_size=100):
 
     with tf.name_scope('train'):
         global_step = tf.Variable(0, trainable=False)
-        # lr_d = tf.train.exponential_decay(1e-4, global_step, 100, 0.8, staircase=False)
-        # lr_g = tf.train.exponential_decay(1e-3, global_step, 100, 0.4, staircase=False)
+        lr_d = tf.train.exponential_decay(1e-4, global_step, 100, 0.9, staircase=False)
+        lr_g = tf.train.exponential_decay(1e-4, global_step, 100, 0.9, staircase=False)
 
-        d_train_step = tf.train.AdamOptimizer().minimize(d_loss, global_step=global_step, var_list=dvar)
-        g_train_step = tf.train.AdamOptimizer().minimize(g_loss, global_step=global_step, var_list=gvar)
+        d_train_step = tf.train.AdamOptimizer(lr_d).minimize(d_loss, global_step=global_step, var_list=dvar)
+        g_train_step = tf.train.AdamOptimizer(lr_g).minimize(g_loss, global_step=global_step, var_list=gvar)
 
-        # tf.summary.scalar('lr_d', lr_d)
-        # tf.summary.scalar('lr_g', lr_g)
+        tf.summary.scalar('lr_d', lr_d)
+        tf.summary.scalar('lr_g', lr_g)
+
     sess = tf.Session()
     init = tf.global_variables_initializer()
     sess.run(init)
 
     merged_summary = tf.summary.merge_all()
-    writer = tf.summary.FileWriter('tmp/mnist/102')
+    writer = tf.summary.FileWriter('tmp/mnist/106')
     writer.add_graph(sess.graph)
 
     for i in range(100000):
         batch_X, _ = mnist.train.next_batch(batch_size)
         batch_X = np.reshape(batch_X, [-1, 28, 28, 1])
-        batch_noise = np.random.uniform(-1., 1., [batch_size, 100])
+        batch_X = batch_X * 2 - 1 # normalize input image from -1 to 1
+        batch_noise = np.random.normal(0, 1.0, [batch_size, 100]).astype(np.float32)
+
+        # print('fake---', sess.run(D_fake, feed_dict={X: batch_X, z: batch_noise}))
+        # print('real---', sess.run(D_real, feed_dict={X: batch_X, z: batch_noise}))
 
         # train G
         # if i % 1000 == 0:
@@ -165,7 +177,9 @@ def train(batch_size=100):
         if i % 1000 == 0:
             try:
                 batch_G = sess.run(G, feed_dict={X: batch_X, z: batch_noise})
-                cv2.imwrite(os.path.join('..', 'figure', '2.png'), (np.repeat(batch_G[0], 3, axis=2)*255))
+                # batch_G, acc_r, acc_f = sess.run([G, acc_real, acc_fake], feed_dict={X: batch_X, z: batch_noise})
+                cv2.imwrite(os.path.join('..', 'figure', '2.png'), ((np.repeat(batch_G[0], 3, axis=2)+1)*255./2))
+                # print('Accuracy real: %f Accuracy fake: %f' % (acc_r, acc_f))
             except:
                 pass
 
