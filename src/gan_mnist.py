@@ -70,7 +70,7 @@ def discriminator(X, reuse=False):
         flat = tf.reshape(lrelu(bn2), [-1, 7*7*M], name='flat')
         dense = lrelu(tf.matmul(flat, W3) + B3)
         logits = tf.matmul(dense, W4) + B4
-        return tf.nn.sigmoid(logits), logits
+        return logits, logits
 
 
 def generator(X, batch_size):
@@ -130,15 +130,15 @@ def train(batch_size=100):
         tf.summary.histogram('fake', D_fake)
 
     with tf.variable_scope('D_loss'):
-        d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)*0.9))
-        d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
+        d_loss_real = tf.reduce_mean(-D_real_logits)
+        d_loss_fake = tf.reduce_mean(D_fake_logits)
         d_loss = d_loss_real + d_loss_fake
         tf.summary.scalar('d_loss_real', d_loss_real)
         tf.summary.scalar('d_loss_fake', d_loss_fake)
         tf.summary.scalar('d_loss', d_loss)
 
     with tf.name_scope('G_loss'):
-        g_loss_d = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.ones_like(D_fake)*0.9))
+        g_loss_d = tf.reduce_mean(-D_fake_logits)
         g_loss = g_loss_d
         tf.summary.scalar('g_loss_d', g_loss_d)
         tf.summary.scalar('g_loss', g_loss)
@@ -147,16 +147,19 @@ def train(batch_size=100):
     dvar = [var for var in tvar if 'discriminator' in var.name]
     gvar = [var for var in tvar if 'generator' in var.name]
 
+    with tf.variable_scope('D_clip'):
+        d_clip = [tf.assign(t, tf.clip_by_value(t, -0.01, 0.01)) for t in dvar]
+
     with tf.name_scope('train'):
         global_step = tf.Variable(0, trainable=False)
-        lr_d = tf.train.exponential_decay(1e-4, global_step, 1000, 0.8, staircase=False)
-        lr_g = tf.train.exponential_decay(1e-4, global_step, 100, 0.8, staircase=False)
+        # lr_d = tf.train.exponential_decay(1e-4, global_step, 1000, 0.8, staircase=False)
+        # lr_g = tf.train.exponential_decay(1e-4, global_step, 100, 0.8, staircase=False)
 
         d_train_step = tf.train.AdamOptimizer(1e-4).minimize(d_loss, global_step=global_step, var_list=dvar)
         g_train_step = tf.train.AdamOptimizer(1e-4).minimize(g_loss, global_step=global_step, var_list=gvar)
 
-        tf.summary.scalar('lr_d', lr_d)
-        tf.summary.scalar('lr_g', lr_g)
+        # tf.summary.scalar('lr_d', lr_d)
+        # tf.summary.scalar('lr_g', lr_g)
     sess = tf.Session()
     init = tf.global_variables_initializer()
     sess.run(init)
@@ -174,14 +177,13 @@ def train(batch_size=100):
         # train G
         # if i % 1000 == 0:
         g_loss_print, _ = sess.run([g_loss, g_train_step],
-                                   feed_dict={X: batch_X, z: batch_noise},)
+                                   feed_dict={X: batch_X, z: batch_noise})
 
         # train D
-
         # if i % 1000 == 0:
-        for j in range(1):
-            d_loss_print, _ = sess.run([d_loss, d_train_step],
+        d_loss_print, _ = sess.run([d_loss, d_train_step],
                                    feed_dict={X: batch_X, z: batch_noise})
+        sess.run(d_clip, feed_dict={X: batch_X, z: batch_noise})
 
         if i % 25 == 0:
             s = sess.run(merged_summary, feed_dict={X: batch_X, z: batch_noise})
