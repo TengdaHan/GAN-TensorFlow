@@ -95,7 +95,7 @@ def train(logdir='1', model='fc', batch_size=64):
         batch_X, _ = mnist.train.next_batch(batch_size)
         batch_noise = np.random.uniform(-1., 1., [batch_size, 100])
 
-        if i % 1000 == 0:
+        if i % 500 == 0:
             samples = sess.run(G, feed_dict={z: np.random.uniform(-1., 1., [64, 100])})
             fig = plot(samples)
             plt.savefig('output/%s.png' % str(num_img).zfill(3), bbox_inches='tight')
