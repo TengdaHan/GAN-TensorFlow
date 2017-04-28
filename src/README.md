@@ -1,9 +1,16 @@
 # Source Code Repository
-## gan_mnist.py
-### Info
-A vanila GAN for MNIST dataset. To train the net, simply run in command:
-```python gan_mnist.py```
+## Introduction
+* Only 2 fully-connected layers for both discriminator and generator
+* Use [Xavier initializer](http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf) to accelerate training process.
+* Gif of training result:
 
-### Current Result
-![Image](https://github.com/TengdaHan/GAN-Tensorflow/blob/master/src/img/201700302.JPG)
-It means the generator loss function from discriminator's result doesn't work. Still fixing. 
+<img src="https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/2fc-mnist.gif" width="256px">
+
+* Figure of loss functions:
+
+![](https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/2fc_mnist_dloss.JPG) ![](https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/2fc_mnist_gloss.JPG)
+## Instruction
+A vanila GAN for MNIST dataset. To train the net, simply run in command:
+
+```python train.py```
+ 
