@@ -1,10 +1,8 @@
-# tf rd test - mnist GAN
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import os
-from model import discriminator, generator
 
 
 def read_data():
@@ -28,7 +26,12 @@ def plot(samples):
     return fig
 
 
-def train(logdir='1', batch_size=64):
+def train(logdir='1', model='fc', batch_size=64):
+    if model == 'fc':
+        from model_fc import discriminator, generator
+    elif model == 'conv':
+        from model_conv import discriminator, generator
+
     mnist = read_data()
 
     with tf.variable_scope('placeholder'):
@@ -40,7 +43,7 @@ def train(logdir='1', batch_size=64):
         tf.summary.histogram('Noise', z)
 
     with tf.variable_scope('GAN'):
-        G = generator(z)
+        G = generator(z, batch_size)
 
         D_real, D_real_logits = discriminator(X, reuse=False)
         D_fake, D_fake_logits = discriminator(G, reuse=True)
@@ -112,4 +115,4 @@ def train(logdir='1', batch_size=64):
 
 
 if __name__ == '__main__':
-    train(logdir='1', batch_size=128)
+    train(logdir='1', model='conv', batch_size=64)
