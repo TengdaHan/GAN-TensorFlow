@@ -1,6 +1,6 @@
 # Source Code Repository
-## Introduction
-* Only 2 fully-connected layers for both discriminator and generator
+## Vanila GAN with fc layers
+* Only 2 fully-connected layers for both discriminator and generator.
 * Use [Xavier initializer](http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf) to accelerate training process.
 * Gif of training result:
 
@@ -9,12 +9,13 @@
 * Figure of loss functions:
 
 ![](https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/2fc_mnist_dloss.JPG) ![](https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/2fc_mnist_gloss.JPG)
-## Instruction
-A vanila GAN for MNIST dataset. To train the net, simply run in command:
-
+### Instruction
+To train the model, run the command: 
 ```python train.py```
- 
-## Lessons learned:
+
+Output images will be saved in ```src/output/``` directory.
+Tensorboard log files will be saved in ```src/tmp/``` directory.
+### Lessons learned
 * Understanding how to [share variables](https://www.tensorflow.org/programmers_guide/variable_scope) in TensorFlow is important when training GANs. In the training, we create two discriminators for both MNIST images and generated images like:
   ```
   D_real, D_real_logits = discriminator(X)
@@ -33,3 +34,17 @@ A vanila GAN for MNIST dataset. To train the net, simply run in command:
   ```
   
 * [Xavier initializer](http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf) helps accelerate the training process.
+
+## Vanila GAN with ConvNets
+* Use small scale convolution networks for both discriminator and generator.
+* Use [Xavier initializer](http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf) to accelerate training process.
+* Gif of training result:
+
+<img src="https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/conv-mnist.gif" width="256px">
+
+### Instruction
+Ensure to specify model name 'conv' in the last row of [train.py](https://github.com/TengdaHan/GAN-TensorFlow/blob/master/src/train.py), like: 
+```train(logdir='1', model='conv', batch_size=64)```
+
+Then run command:
+```python train.py```
