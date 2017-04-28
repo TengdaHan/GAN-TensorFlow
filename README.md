@@ -1,7 +1,7 @@
 # GAN-Tensorflow
 ## Introduction
 Implementation of GAN (Generative Adversarial Nets) in [Tensorflow](www.tensorflow.org)
-## Tasks: [source code](https://github.com/TengdaHan/GAN-Tensorflow/tree/master/src)
+## [Tasks:](https://github.com/TengdaHan/GAN-Tensorflow/tree/master/src)
   * Simple vanila GAN on [MNIST](yann.lecun.com/exdb/mnist/)
     * Two Fully-Connected layers for both Discriminator and Generator.
     * Training result in gif:
