@@ -6,16 +6,32 @@
 
 <img src="https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/2fc-mnist.gif" width="256px">
 
-* Figure of loss functions:
-
-![](https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/2fc_mnist_dloss.JPG) ![](https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/2fc_mnist_gloss.JPG)
 ### Instruction
 To train the model, run the command: 
-```python train.py```
+```python train_fc.py```
+To specify logdir and batch size, check this:
+```python train_fc.py -h```
 
 Output images will be saved in ```src/output/``` directory.
 Tensorboard log files will be saved in ```src/tmp/``` directory.
-### Lessons learned
+
+## Vanila GAN with ConvNets
+* Use small scale convolution networks for both discriminator and generator.
+* Use [Xavier initializer](http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf) to accelerate training process.
+* Gif of training result:
+
+<img src="https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/conv-mnist.gif" width="256px">
+
+### Instruction
+To train the model, run the command: 
+```python train_conv.py```
+To specify logdir and batch size, check this:
+```python train_conv.py -h```
+
+Output images will be saved in ```src/output/``` directory.
+Tensorboard log files will be saved in ```src/tmp/``` directory.
+
+## Lessons learned
 * Understanding how to [share variables](https://www.tensorflow.org/programmers_guide/variable_scope) in TensorFlow is important when training GANs. In the training, we create two discriminators for both MNIST images and generated images like:
   ```
   D_real, D_real_logits = discriminator(X)
@@ -34,17 +50,3 @@ Tensorboard log files will be saved in ```src/tmp/``` directory.
   ```
   
 * [Xavier initializer](http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf) helps accelerate the training process.
-
-## Vanila GAN with ConvNets
-* Use small scale convolution networks for both discriminator and generator.
-* Use [Xavier initializer](http://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf) to accelerate training process.
-* Gif of training result:
-
-<img src="https://github.com/TengdaHan/GAN-TensorFlow/blob/master/figure/conv-mnist.gif" width="256px">
-
-### Instruction
-Ensure to specify model name 'conv' in the last row of [train.py](https://github.com/TengdaHan/GAN-TensorFlow/blob/master/src/train.py), like: 
-```train(logdir='1', model='conv', batch_size=64)```
-
-Then run command:
-```python train.py```
