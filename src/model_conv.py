@@ -57,19 +57,13 @@ def discriminator(X, reuse=False):
         X = tf.reshape(X, [-1, 28, 28, 1], 'reshape')
 
         conv1 = conv(X, W1, B1, stride=2, name='conv1')
-        # bn1 = tf.nn.batch_normalization(conv1, 0, 1,
-        #                                 offset=None,
-        #                                 scale=None,
-        #                                 variance_epsilon=1e-5)
-        # conv2 = conv(tf.nn.dropout(lrelu(conv1), 0.4), W2, B2, stride=2, name='conv2')
-        conv2 = conv(lrelu(conv1), W2, B2, stride=2, name='conv2')
+        bn1 = tf.contrib.layers.batch_norm(conv1)
+        conv2 = conv(tf.nn.dropout(lrelu(bn1), 0.4), W2, B2, stride=2, name='conv2')
+        # conv2 = conv(lrelu(conv1), W2, B2, stride=2, name='conv2')
 
-        # bn2 = tf.nn.batch_normalization(conv2, 0, 1,
-        #                                 offset=None,
-        #                                 scale=None,
-        #                                 variance_epsilon=1e-5)
-        # flat = tf.reshape(tf.nn.dropout(lrelu(conv2), 0.4), [-1, 7*7*M], name='flat')
-        flat = tf.reshape(lrelu(conv2), [-1, 7*7*M], name='flat')
+        bn2 = tf.contrib.layers.batch_norm(conv2)
+        flat = tf.reshape(tf.nn.dropout(lrelu(bn2), 0.4), [-1, 7*7*M], name='flat')
+        # flat = tf.reshape(lrelu(conv2), [-1, 7*7*M], name='flat')
 
         dense = lrelu(tf.matmul(flat, W3) + B3)
         logits = tf.matmul(dense, W4) + B4
@@ -96,15 +90,8 @@ def generator(X, batch_size=64):
         X = lrelu(tf.matmul(X, W1) + B1)
         X = tf.reshape(X, [batch_size, 7, 7, K])
         deconv1 = deconv(X, W2, B2, shape=[batch_size, 14, 14, M], stride=2, name='deconv1')
-        # bn1 = tf.nn.batch_normalization(deconv1, 0, 1,
-        #                                 offset=None,
-        #                                 scale=None,
-        #                                 variance_epsilon=1e-5)
-        deconv2 = deconv(tf.nn.dropout(lrelu(deconv1), 0.4), W3, B3, shape=[batch_size, 28, 28, 1], stride=2, name='deconv2')
-        # bn2 = tf.nn.batch_normalization(deconv2, 0, 1,
-        #                                 offset=None,
-        #                                 scale=None,
-        #                                 variance_epsilon=1e-5)
+        bn1 = tf.contrib.layers.batch_norm(deconv1)
+        deconv2 = deconv(tf.nn.dropout(lrelu(bn1), 0.4), W3, B3, shape=[batch_size, 28, 28, 1], stride=2, name='deconv2')
 
         XX = tf.reshape(deconv2, [-1, 28*28], 'reshape')
 

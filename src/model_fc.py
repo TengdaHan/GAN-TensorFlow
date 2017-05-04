@@ -23,19 +23,20 @@ def discriminator(X, reuse=False):
         W2 = tf.get_variable('D_W2', [K, L],
                              initializer=tf.random_normal_initializer(stddev=xavier_init([K, L])))
         B2 = tf.get_variable('D_B2', [L], initializer=tf.constant_initializer())
+
+        # summary
         tf.summary.histogram('weight1', W1)
         tf.summary.histogram('weight2', W2)
         tf.summary.histogram('biases1', B1)
         tf.summary.histogram('biases2', B2)
 
-        # flat = tf.reshape(X, [-1, 784], name='flat')
         fc1 = tf.nn.relu((tf.matmul(X, W1) + B1))
         logits = tf.matmul(fc1, W2) + B2
         prob = tf.nn.sigmoid(logits)
         return prob, logits
 
 
-def generator(X, batch_size=64):
+def generator(X):
     with tf.variable_scope('generator'):
         K = 128
         L = 784
@@ -47,9 +48,9 @@ def generator(X, batch_size=64):
                              initializer=tf.random_normal_initializer(stddev=xavier_init([K, L])))
         B2 = tf.get_variable('G_B2', [L], initializer=tf.constant_initializer())
 
+        # summary
         tf.summary.histogram('weight1', W1)
         tf.summary.histogram('weight2', W2)
-
         tf.summary.histogram('biases1', B1)
         tf.summary.histogram('biases2', B2)
 
