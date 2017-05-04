@@ -9,6 +9,7 @@
 ### Instruction
 To train the model, run the command: 
 ```python train_fc.py```
+
 To specify logdir and batch size, check this:
 ```python train_fc.py -h```
 
@@ -25,6 +26,7 @@ Tensorboard log files will be saved in ```src/tmp/``` directory.
 ### Instruction
 To train the model, run the command: 
 ```python train_conv.py```
+
 To specify logdir and batch size, check this:
 ```python train_conv.py -h```
 
